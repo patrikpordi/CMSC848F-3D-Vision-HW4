@@ -1,0 +1,1225 @@
+<meta charset="utf-8" emacsmode="-*- markdown -*">
+**CMSC848F-3D Vision**
+    **Assignment 4**
+**Patrik Dominik Pördi**
+**Dir id: ppordi; Email: ppordi@umd.edu; UID:119367223**
+**Code: https://github.com/patrikpordi/CMSC848F-3D-Vision-HW4**                           
+Overview
+===============================================================================
+In this assignment, you will implement a PointNet based architecture for classification and segmentation with point clouds (you don't need to worry about the tranformation blocks). Q1 and Q2 focus on implementing, training and testing models. Q3 asks you to quantitatively analyze model robustness. Q4 (extra point) involves locality. 
+
+`models.py` is where you will define model structures. `train.py` loads data, trains models, logs trajectories and saves checkpoints. `eval_cls.py` and `eval_seg.py` contain script to evaluate model accuracy and visualize segmentation result. Feel free to modify any file as needed.
+
+Data Preparation
+-------------------------------------------------------------------------------
+Download zip file (~2GB) from https://drive.google.com/file/d/1wXOgwM_rrEYJfelzuuCkRfMmR0J7vLq_/view?usp=sharing. Put the unzipped `data` folder under root directory. There are two folders (`cls` and `seg`) corresponding to two tasks, each of which contains `.npy` files for training and testing.
+
+Q1. Classification Model (40 points)
+-------------------------------------------------------------------------------
+Implement the classification model in `models.py`.
+
+Deliverables: On your website, 
+
+- Report the test accuracy.
+
+- Visualize a few random test point clouds and mention the predicted classes for each. Also visualize at least 1 failure prediction for each class (chair, vase and lamp), and provide interpretation in a few sentences.  
+
+**Method:** In addressing this segment, I adhered to the structure outlined in the PointNet paper. Our dataset comprises only three classes, and the subsequent test accuracy is provided, along with a breakdown of successful and unsuccessful classification outcomes.
+
+**Model Architecture:** 
+```BASH
+# Encoder Layers:
+1. Conv1d: in_channels=3, out_channels=64, kernel_size=1
+2. BatchNorm1d: 64 channels
+3. ReLU activation
+
+4. Conv1d: in_channels=64, out_channels=64, kernel_size=1
+5. BatchNorm1d: 64 channels
+6. ReLU activation
+
+7. Conv1d: in_channels=64, out_channels=64, kernel_size=1
+8. BatchNorm1d: 64 channels
+9. ReLU activation
+
+10. Conv1d: in_channels=64, out_channels=128, kernel_size=1
+11. BatchNorm1d: 128 channels
+12. ReLU activation
+
+13. Conv1d: in_channels=128, out_channels=1024, kernel_size=1
+14. BatchNorm1d: 1024 channels
+15. ReLU activation
+
+# Decoder Layers:
+1. Global max pooling (torch.amax)
+2. Fully Connected (Linear): in_features=1024, out_features=512
+3. BatchNorm1d: 512 channels
+4. ReLU activation
+
+5. Fully Connected (Linear): in_features=512, out_features=256
+6. BatchNorm1d: 256 channels
+7. ReLU activation
+
+8. Fully Connected (Linear): in_features=256, out_features=num_classes 
+9. BatchNorm1d: num_classes channels
+10. ReLU activation
+```
+**The average test accuracy of classification over all three classes : 95.66 %**
+
+**Explonation:** Based on the results provided below, it appears that the certain shapes across classes are sometimes misidentified. This is likely due to the inherent similarity in the 3D structures, especially the vase and lamp shapes. Another observation is that a potential reduction in variability could be achieved with a larger dataset, as exemplified by the chair category, which displayed a notably higher accuracy with minimal false positives, making it the most reliable prediction across classes. On the other hand, chairs can be problematic in the followings, which could be attributed to the dataset's limited size and the lack of variability in the chair category.
+
+
+### Results: Success
+
+<style>
+table {
+width: 100%;
+text-align: center;
+}
+th, td {
+width: 33.33%;
+padding: 1px;
+border: 1px solid #ccc;
+box-sizing: border-box; /* Prevents the border from affecting layout */
+}
+figure {
+margin: 0; /* Remove default margins around figures */
+}
+img {
+width: 100%; /* Make the images fill their container */
+}
+</style>
+<table style="width: 100%; text-align: center;">
+<tr>
+<th style="width: 50%;">Point Cloud</th>
+<th style="width: 25%;">Ground Truth</th>
+<th style="width: 25%;">Prediction</th>
+</tr>
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls1GT_chair_Pred_chair.gif" alt="Chair 360 degree rendered" />
+<figcaption>Chair 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 25;">
+Chair 
+</td>
+<td style="width: 25%;">
+Chair
+</td>
+</tr>
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls4GT_chair_Pred_chair.gif" alt="Chair 360 degree rendered" />
+<figcaption>Chair 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 25;">
+Chair
+</td>
+<td style="width: 25%;">
+Chair
+</td>
+</tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls16GT_vases_Pred_vases.gif" alt="Vase 360 degree rendered" />
+<figcaption>Vases 360 degree rendered</figcaption>
+</figure
+</td>
+<td style="width: 25;">
+Vase 
+</td>
+<td style="width: 25%;">
+Vase 
+</td>
+</tr>
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls18GT_vases_Pred_vases.gif" alt="Vase 360 degree rendered" />
+<figcaption>Vases 360 degree rendered</figcaption>
+</figure
+</td>
+<td style="width: 25;">
+Vase 
+</td>
+<td style="width: 25%;">
+Vase 
+</td>
+</tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls4GT_lamps_Pred_lamps.gif" alt="Lamp 360 degree rendered" />
+<figcaption>Lamp 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 25;">
+Lamp 
+</td>
+<td style="width: 25%;">
+Lamp 
+</td>
+</tr>
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls3GT_lamps_Pred_lamps.gif" alt="Lamp 360 degree rendered" />
+<figcaption>Lamp 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 25;">
+Lamp 
+</td>
+<td style="width: 25%;">
+Lamp 
+</td>
+</tr>
+</table>
+
+### Results: Failures
+
+
+<table style="width: 100%; text-align: center;">
+<tr>
+<th style="width: 50%;">Point Cloud</th>
+<th style="width: 25%;">Ground Truth</th>
+<th style="width: 25%;">Prediction</th>
+</tr>
+
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls10GT_vases_Pred_lamps.gif" alt="Vases 360 degree rendered" />
+<figcaption>Vases 360 degree rendered</figcaption>
+</figure
+</td>
+<td style="width: 25;">
+Vase
+</td>
+<td style="width: 25%;">
+Lamp
+</td>
+</tr>
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls14GT_vases_Pred_chair.gif" alt="Vases 360 degree rendered" />
+<figcaption>Vases 360 degree rendered</figcaption>
+</figure
+</td>
+<td style="width: 25;">
+Vase
+</td>
+<td style="width: 25%;">
+Chair
+</td>
+</tr>
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls19GT_lamps_Pred_vases.gif" alt="Lamp 360 degree rendered" />
+<figcaption>Lamp 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 25;">
+Lamp
+</td>
+<td style="width: 25%;">
+Vase
+</td>
+</tr>
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls27GT_lamps_Pred_vases.gif" alt="Lamp 360 degree rendered" />
+<figcaption>Lamp 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 25;">
+Lamp
+</td>
+<td style="width: 25%;">
+Vase
+</td>
+</tr>
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls13GT_chair_Pred_vases.gif" alt="Chair 360 degree rendered" />
+<figcaption>Chair 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 25;">
+Chair
+</td>
+<td style="width: 25%;">
+Vase
+</td>
+</tr>
+<tr>
+<td style="width: 50%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_1/Cls29GT_chair_Pred_lamps.gif" alt="Chair 360 degree rendered" />
+<figcaption>Chair 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 25;">
+Chair
+</td>
+<td style="width: 25%;">
+Lamp
+</td>
+</tr>
+</table>
+
+
+
+Q2. Segmentation Model (40 points) 
+-------------------------------------------------------------------------------
+Implement the segmentation model in `models.py`.  
+
+- Input: points of chair objects (6 semantic segmentation classes) 
+
+- Output: segmentation of points (Dimension: Batch * Number of Points per Object * Number of Segmentation Classes)
+
+Deliverables: On your website 
+
+- Report the test accuracy.
+
+- Visualize segmentation results of at least 5 objects (including 2 bad predictions) with corresponding ground truth, report the prediction accuracy for each object, and provide interpretation in a few sentences.
+
+**Method:** In this section, I adhered to the architecture outlined in the PointNet paper, utilizing it for the segmentation of individual points within a chair dataset that comprises six distinct classes.
+
+
+**Model Architecture:** 
+```BASH
+### Encoder Layers:
+1. Conv1d: in_channels=3, out_channels=64, kernel_size=1
+2. BatchNorm1d: 64 channels
+3. ReLU activation
+
+4. Conv1d: in_channels=64, out_channels=64, kernel_size=1
+5. BatchNorm1d: 64 channels
+6. ReLU activation
+
+7. Conv1d: in_channels=64, out_channels=64, kernel_size=1
+8. BatchNorm1d: 64 channels
+9. ReLU activation
+
+10. Conv1d: in_channels=64, out_channels=128, kernel_size=1
+11. BatchNorm1d: 128 channels
+12. ReLU activation
+
+13. Conv1d: in_channels=128, out_channels=1024, kernel_size=1
+14. BatchNorm1d: 1024 channels
+15. ReLU activation
+
+### Decoder Layers:
+1. Conv1d: in_channels=1088, out_channels=512, kernel_size=1
+2. BatchNorm1d: 512 channels
+3. ReLU activation
+
+4. Conv1d: in_channels=512, out_channels=256, kernel_size=1
+5. BatchNorm1d: 256 channels
+6. ReLU activation
+
+7. Conv1d: in_channels=256, out_channels=128, kernel_size=1
+8. BatchNorm1d: 128 channels
+9. ReLU activation
+
+10. Conv1d: in_channels=128, out_channels=num_seg_classes, kernel_size=1
+```
+
+**The average test accuracy of segmentation over all classes : 89.34 %**
+
+**Explonation: ** Instance accuracies are shown below whereas the overall accuracy was shown above. With the increase in number of classes is accompanied by complexity of the sturcture for segmentation, therefore the accuracy decreases. Notably, in the initial three cases, the accuracy of segmentation is notably influenced by factors such as the shape of the point cloud and the dimensions of smaller objects, that are not contributing to the main shape much, they are related to the finier datails. This can be noticed in the two task cases below that have failed, where the segmenation is not able to capture these finer details, they are segmented into larger shapes and the accuracy is reduced.
+
+### Results: Correct Segmentations (More than 50% of points correctly segmented)
+
+</style>
+<table style="width: 100%; text-align: center;">
+<tr>
+<th style="width: 45%;">GT Segmented Point cloud</th>
+<th style="width: 45%;">Prediction Segmented Point Cloud</th>
+<th style="width: 10%;">Prediction Accuracy</th>
+</tr>
+<tr>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/gt_0_1.gif" alt="GT Chair  360 degree rendered" />
+<figcaption>GT Chair 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/pred_0_1.gif" alt="Predicted Chair Segmentation  360 degree rendered" />
+<figcaption>Predicted Chair Segmentation 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 10%;">
+98.35 %
+</td>
+</tr>
+<tr>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/gt_0_4.gif" alt="GT Chair  360 degree rendered" />
+<figcaption>GT Chair 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/pred_0_4.gif" alt="Predicted Chair Segmentation 360 degree rendered" />
+<figcaption>Predicted Chair Segmentation 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 10%;">
+70.73 %
+</td>
+</tr>
+<tr>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/gt_0_7.gif" alt="GT Chair 360 degree rendered" />
+<figcaption>GT Chair 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/pred_0_7.gif" alt="Predicted Chair Segmentation 360 degree rendered" />
+<figcaption>Predicted Chair Segmentation 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 10%;">
+96.94 %
+</td>
+</tr>
+
+</table>
+
+### Results: Failed Segmentations (More than 50% of points wrongly segmented)
+
+
+
+<table style="width: 100%; text-align: center;">
+<tr>
+<th style="width: 45%;">GT Segmented Point cloud</th>
+<th style="width: 45%;">Prediction Segmented Point Cloud</th>
+<th style="width: 10%;">Prediction Accuracy</th>
+</tr>
+<tr>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/gt_0_26.gif" alt="GT Chair 360 degree rendered" />
+<figcaption>GT Chair 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/pred_0_26.gif" alt="Predicted Chair Segmentation 360 degree rendered" />
+<figcaption>Predicted Chair Segmentation 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 10%;">
+48.40 %
+</td>
+</tr>
+<tr>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/gt_10_31.gif" alt="GT Chair  360 degree rendered" />
+<figcaption>GT Chair 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 45%;">
+<figure style="display: inline-block; width: 100%;">
+<img src="question_2/pred_10_31.gif" alt="Predicted Chair Segmentation 360 degree rendered" />
+<figcaption>Predicted Chair Segmentation 360 degree rendered</figcaption>
+</figure>
+</td>
+<td style="width: 10%;">
+38.76 %
+</td>
+</tr>
+
+</table>
+
+Q3. Robustness Analysis (20 points)
+-------------------------------------------------------------------------------
+Conduct 2 experiments to analyze the robustness of your learned model. Some possible suggestions are:
+1. You can rotate the input point clouds by certain degrees and report how much the accuracy falls
+2. You can input a different number of points points per object (modify `--num_points` when evaluating models in `eval_cls.py` and `eval_seg.py`)
+
+Deliverables: On your website, for each experiment
+
+- Describe your procedure 
+- For each task, report test accuracy and visualization on a few samples, in comparison with your results from Q1 & Q2.
+- Provide some interpretation in a few sentences.
+
+
+### Analysis I.: Varying Number of sampeld Points
+I sampled varying number of points using 50, 250, 500 sample size in the point cloud to record accuracy in each case. This experiment helps us understand the ability of the algorithm to detect or segment sparse points and how sparse the reading of 3D data can be for an autonomous agent to make a decision.
+
+#### Implementation details:
+The low number of points is due to the fact that the accuracies platoeaud pretty quickly therefore I did not go beyond 500 points.
+The sampling of points was done using the following argument:
+
+```bash
+--num_points
+```
+
+#### Results:
+
+##### Classification Results
+
+**Explonation: ** The model is pretty robust to sparse point clouds. It is however possible that with more classes, the accuracy drops with sparser points. Also the same characteristics of misidentification of object can be seen as in the case of the original model. The model is able to identify the chair class with a higher accuracy than the other two classes. This is likely due to the fact that the chair class has a more distinct shape and is easier to identify. The other two classes, lamps and vases, are more similar in shape and therefore more difficult to distinguish.
+
+<style>
+    .custom-table1 {
+        margin-left: -500px; /* Adjust the margin to your preference */
+        width: calc(250%);
+        text-align: left;
+        border-collapse: collapse;
+    }
+    
+    .custom-table1 th,
+    .custom-table td {
+        padding: 2px;
+        border: 1px solid #ccc;
+    }
+    
+    .custom-table1 th:first-child,
+    .custom-table1 td:first-child {
+        width: 0.05%; /* Set the width for the first column (Angles) */
+    }
+    
+    .custom-table1 th:not(:first-child),
+    .custom-table1 td:not(:first-child) {
+        width: 23%; /* Set the width for the rest of the columns */
+    }
+    
+    .custom-table1 figure {
+        margin: 0; /* Remove default margins around figures */
+    }
+    
+    .custom-table1 img {
+        width: 100%; /* Make the images fill their container */
+    }
+    </style>
+    
+    <table class="custom-table1" style="text-align: center;">
+        <tr>
+            <th>No. of points</th>
+            <th>No. of points = 50</th>
+            <th>No. of points = 250</th>
+            <th>No. of points = 500</th>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Ground Truth</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling50/Cls0GT_chair_Pred_chair.gif" alt="Chair 360° rendered at No. of points=50" />
+                    <figcaption>GT Chair predicted as chair 360° rendered at No. of points=50</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling250/Cls6GT_lamps_Pred_lamps.gif" alt="Lamp 360° rendered at No. of points=250" />
+                    <figcaption>GT Lamp predicted ans lamp 360° rendered at No. of points=250</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling500/Cls0GT_vases_Pred_vases.gif" alt="GT Vase 360° rendered at No. of points=500" />
+                    <figcaption>GT Vases predicted as vases 360° rendered at No. of points=500</figcaption>
+                </figure>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Prediction</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling50/Cls5GT_lamps_Pred_chair.gif" alt="GT Lamp 360° rendered at No. of points=50" />
+                    <figcaption>GT Lamp predicted as chair 360° rendered at No. of points=50</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling250/Cls22GT_lamps_Pred_vases.gif" alt="GT Lamp 360° rendered at No. of points=250" />
+                    <figcaption>GT Lamp predicted as vase 360° rendered at No. of points=50</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling500/Cls8GT_vases_Pred_lamps.gif" alt="GT Vases 360° rendered at No. of points=500" />
+                    <figcaption>GT Vases predicted as lamo 360° rendered at No. of points=500</figcaption>
+                </figure>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><p><font size="3.5"><strong>Overall Test Accuracies</strong></font></p></td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 77.01 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 96.25 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 96.85 %</strong></font></p>
+            </td>
+        </tr>
+    </table>
+
+##### Segmentation Results
+
+**Explonation: ** The segmentation results show the same trend that classification. By increasing the number of points the accuracy tends to increase steadily because there are less number of classes which mismatch and with higher number of points the accuracy plateaus.
+
+
+<style>
+    .custom-table1 {
+        margin-left: -500px; /* Adjust the margin to your preference */
+        width: calc(250%);
+        text-align: left;
+        border-collapse: collapse;
+    }
+    
+    .custom-table1 th,
+    .custom-table td {
+        padding: 2px;
+        border: 1px solid #ccc;
+    }
+    
+    .custom-table1 th:first-child,
+    .custom-table1 td:first-child {
+        width: 0.05%; /* Set the width for the first column (Angles) */
+    }
+    
+    .custom-table1 th:not(:first-child),
+    .custom-table1 td:not(:first-child) {
+        width: 23%; /* Set the width for the rest of the columns */
+    }
+    
+    .custom-table1 figure {
+        margin: 0; /* Remove default margins around figures */
+    }
+    
+    .custom-table1 img {
+        width: 100%; /* Make the images fill their container */
+    }
+    </style>
+    
+    <table class="custom-table1" style="text-align: center;">
+        <tr>
+            <th>No. of points</th>
+            <th>No. of points = 50</th>
+            <th>No. of points = 250</th>
+            <th>No. of points = 500</th>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Ground Truth</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling50/gt_0_5.gif" alt="GT Chair 360° rendered at No. of points=50" />
+                    <figcaption>GT Chair rendered at No. of points=50</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling250/gt_0_5.gif" alt="GT Chair 360° rendered at No. of points=250" />
+                    <figcaption>GT Chair 360° rendered at No. of points=250</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling500/gt_0_5.gif" alt="GT Chair 360° rendered at No. of points=500" />
+                    <figcaption>GT Chair 360° rendered at No. of points=500</figcaption>
+                </figure>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Prediction</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling50/pred_0_5.gif" alt="Predicted Chair 360° rendered at No. of points=50" />
+                    <figcaption>Predicted Chair 360° rendered at No. of points=50</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling250/pred_0_5.gif" alt="Predicted Chair 360° rendered at No. of points=250" />
+                    <figcaption>Predicted Chair 360° rendered at No. of points=250</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="sampling500/pred_0_5.gif" alt="Predicted Chair 360° rendered at No. of points=500" />
+                    <figcaption>Predicted Chair 360° rendered at No. of points=500</figcaption>
+                </figure>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Instance Accuracies</strong></font></p></td>
+            <td>
+                <p><font size="4.0"><strong>Instance Accuracy: 92.44 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.0"><strong>Instance Accuracy: 94.56 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.0"><strong>Instance Accuracy: 96.47 %</strong></font></p>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="3.5"><strong>Overall Test Accuracies</strong></font></p></td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 73.67 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 86.53 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 88.70 %</strong></font></p>
+            </td>
+        </tr>
+    </table>
+ 
+    
+
+
+### Analysis II.: Rotation of Point Clouds
+
+Each point cloud in the test dataset will undergo rotation by a specified degree around a given axis/axicies. Subsequently, the rotated point clouds will be assessed using the network trained on the original, un-rotated training dataset. The performance of the model on the rotated point clouds will then be compared to its performance on the original, un-rotated dataset.
+
+#### Implementation:
+Rotation around X-axis by 45 degrees, 90 degrees, 180 degrees.
+Rotation around X, Y, Z axes by 15, 30, 45 degrees.
+The rotation of point clouds was done using the following function and called using the following argument:
+```python
+
+def rotate_x(input_data, angle, args):
+    """
+    Rotate the input data around the x-axis.
+
+    Parameters:
+    - input_data: torch.Tensor or numpy array, input data to be rotated
+    - angle: float, rotation angle in degrees
+
+    Returns:
+    - rotated_data: torch.Tensor, rotated input data
+    """
+    if not isinstance(input_data, torch.Tensor):
+        input_data = torch.tensor(input_data).to(args.device)
+
+    angle_rad = torch.deg2rad(torch.tensor(angle, dtype=torch.float32)).to(args.device)
+    rotation_matrix = torch.tensor([
+        [1, 0, 0],
+        [0, torch.cos(angle_rad), -torch.sin(angle_rad)],
+        [0, torch.sin(angle_rad), torch.cos(angle_rad)]
+    ], dtype=torch.float32).to(args.device)
+
+    rotated_data = torch.matmul(input_data, rotation_matrix)
+    return rotated_data
+
+def rotate_y(input_data, angle, args):
+    """
+    Rotate the input data around the y-axis.
+
+    Parameters:
+    - input_data: torch.Tensor or numpy array, input data to be rotated
+    - angle: float, rotation angle in degrees
+
+    Returns:
+    - rotated_data: torch.Tensor, rotated input data
+    """
+    if not isinstance(input_data, torch.Tensor):
+        input_data = torch.tensor(input_data).to(args.device)
+
+    angle_rad = torch.deg2rad(torch.tensor(angle, dtype=torch.float32)).to(args.device)
+    rotation_matrix = torch.tensor([
+        [torch.cos(angle_rad), 0, torch.sin(angle_rad)],
+        [0, 1, 0],
+        [-torch.sin(angle_rad), 0, torch.cos(angle_rad)]
+    ], dtype=torch.float32).to(args.device)
+
+    rotated_data = torch.matmul(input_data, rotation_matrix)
+    return rotated_data
+
+def rotate_z(input_data, angle, args):
+    """
+    Rotate the input data around the z-axis.
+
+    Parameters:
+    - input_data: torch.Tensor or numpy array, input data to be rotated
+    - angle: float, rotation angle in degrees
+
+    Returns:
+    - rotated_data: torch.Tensor, rotated input data
+    """
+    if not isinstance(input_data, torch.Tensor):
+        input_data = torch.tensor(input_data).to(args.device)
+
+    angle_rad = torch.deg2rad(torch.tensor(angle, dtype=torch.float32)).to(args.device)
+    rotation_matrix = torch.tensor([
+        [torch.cos(angle_rad), -torch.sin(angle_rad), 0],
+        [torch.sin(angle_rad), torch.cos(angle_rad), 0],
+        [0, 0, 1]
+    ], dtype=torch.float32).to(args.device)
+
+    rotated_data = torch.matmul(input_data, rotation_matrix)
+    return rotated_data
+
+    def rotate(data_b, args):
+    rotated_data = data_b.clone()
+    x_angle, y_angle, z_angle = args.Rotation_XYZ
+    rotated_data = rotate_x(rotated_data, x_angle, args)
+    rotated_data = rotate_y(rotated_data, y_angle, args)
+    rotated_data = rotate_z(rotated_data, z_angle, args)
+
+    return rotated_data
+```
+
+```bash
+--Rotation_XYZ (Rotation angle around X) (Rotation angle around Y) (Rotation angle around Z)
+```
+
+
+#### Results
+**Explonation: ** Based on the metrics and visualizations provided below, it is evident that the performance of the model undergoes significant degradation when the point cloud is rotated.
+
+##### Classification Results
+
+**Explonation: ** In case of the classification modell and rotation around X the performance decreases with the increase in rotation angle until 90 deg, then it starts to increase again. In other words, the model performs better in the case of somewhat natural positions, like upside down rather then tilted.
+In case of rotation around all there axicies the model is robust to small angle changes, however, with the increase in angle the performance decreases. This is likely due to the fact that the model is not trained on rotated data and therefore it is not able to generalize to the rotated data.
+
+
+
+<style>
+    .custom-table1 {
+        margin-left: -500px; /* Adjust the margin to your preference */
+        width: calc(250%);
+        text-align: left;
+        border-collapse: collapse;
+    }
+    
+    .custom-table1 th,
+    .custom-table td {
+        padding: 2px;
+        border: 1px solid #ccc;
+    }
+    
+    .custom-table1 th:first-child,
+    .custom-table1 td:first-child {
+        width: 0.05%; /* Set the width for the first column (Angles) */
+    }
+    
+    .custom-table1 th:not(:first-child),
+    .custom-table1 td:not(:first-child) {
+        width: 23%; /* Set the width for the rest of the columns */
+    }
+    
+    .custom-table1 figure {
+        margin: 0; /* Remove default margins around figures */
+    }
+    
+    .custom-table1 img {
+        width: 100%; /* Make the images fill their container */
+    }
+    </style>
+    
+    <table class="custom-table1" style="text-align: center;">
+        <tr>
+            <th>Rotation angle around X-axis</th>
+            <th>45 deg</th>
+            <th>90 deg</th>
+            <th>180 deg</th>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Ground Truth</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_45/Cls0GT_chair_Pred_chair.gif" alt="Chair 360° rendered at X-45 deg" />
+                    <figcaption> Chair Predicted as chair 360° rendered at X-45 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_90/Cls1GT_lamps_Pred_chair.gif" alt=" Chair 360° rendered at X-90 deg" />
+                    <figcaption> Lamps predicted as chair 360° rendered at X-90 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_180/Cls0GT_chair_Pred_vases.gif" alt="Chair 360° rendered at X-180 deg" />
+                    <figcaption>Chair Predicted as vases 360° rendered at X-180 deg</figcaption>
+                </figure>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Prediction</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_45/Cls1GT_lamps_Pred_lamps.gif" alt="Chair 360° rendered at X-45 deg" />
+                    <figcaption>Lamps Predicted as lamps 360° rendered at No. of points=10</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_90/Cls1GT_vases_Pred_vases.gif" alt="Chair 360° rendered at X-90 deg" />
+                    <figcaption>Vases Predicted as vases 360° rendered at X-90 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_180/Cls3GT_lamps_Pred_lamps.gif" alt="Chair 360° rendered at X-180 deg" />
+                    <figcaption>Lamps Predicted as lamps 360° rendered at X-180 deg</figcaption>
+                </figure>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><p><font size="3.5"><strong>Overall Test Accuracies</strong></font></p></td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 49.86 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 45.75 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 75.54 %</strong></font></p>
+            </td>
+        </tr>
+    </table>
+
+
+
+X Rotation | 45 deg | 90 deg | 180 deg
+
+<style>
+    .custom-table1 {
+        margin-left: -500px; /* Adjust the margin to your preference */
+        width: calc(250%);
+        text-align: left;
+        border-collapse: collapse;
+    }
+    
+    .custom-table1 th,
+    .custom-table td {
+        padding: 2px;
+        border: 1px solid #ccc;
+    }
+    
+    .custom-table1 th:first-child,
+    .custom-table1 td:first-child {
+        width: 0.05%; /* Set the width for the first column (Angles) */
+    }
+    
+    .custom-table1 th:not(:first-child),
+    .custom-table1 td:not(:first-child) {
+        width: 23%; /* Set the width for the rest of the columns */
+    }
+    
+    .custom-table1 figure {
+        margin: 0; /* Remove default margins around figures */
+    }
+    
+    .custom-table1 img {
+        width: 100%; /* Make the images fill their container */
+    }
+    </style>
+    
+    <table class="custom-table1" style="text-align: center;">
+        <tr>
+            <th>Rotation angle around XYZ axicies</th>
+            <th>XYZ 15 deg</th>
+            <th>XYZ 30 deg</th>
+            <th>XYZ 45 deg</th>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Ground Truth</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_15/Cls0GT_chair_Pred_chair.gif" alt="Chair 14 360° rendered at XYZ 15 deg" />
+                    <figcaption>Chair Predicted as chair 360° rendered at XYZ 15 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_30/Cls1GT_lamps_Pred_chair.gif" alt="Lamp 360° rendered at XYZ 30 deg" />
+                    <figcaption>Lamps Predicted aschair 360° rendered at XYZ 30 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_45/Cls0GT_vases_Pred_vases.gif" alt="Vase 360° rendered at XYZ 45 deg" />
+                    <figcaption>Vases Predicted as vases 360° rendered at XYZ 45 deg</figcaption>
+                </figure>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Prediction</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_15/Cls0GT_vases_Pred_vases.gif" alt="Chair 360° rendered at XYZ 15 deg" />
+                    <figcaption>Vases Predicted as vases 360° rendered at XYZ 15 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_30/Cls3GT_lamps_Pred_lamps.gif" alt="Lamp 360° rendered at XYZ 30 deg" />
+                    <figcaption>Lamps Predicted as lamps 360° rendered at XYZ 30 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_45/Cls23GT_chair_Pred_chair.gif" alt="Chair 360° rendered at XYZ 45 deg" />
+                    <figcaption>Chair Predicted as chair 360° rendered at XYZ 45 deg</figcaption>
+                </figure>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><p><font size="3.5"><strong>Overall Test Accuracies</strong></font></p></td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 86.87 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 25.34 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 24.49 %</strong></font></p>
+            </td>
+        </tr>
+    </table>
+XYZ Rotation | 15 deg | 30 deg | 45 deg
+
+
+##### Segmentation Results
+
+**Explonation: ** In the segmentation task, the model heavily relies on spatial features and consistently identifies the lower section of the point cloud as chair legs, even for conventional chair structures. This behavior is likely due to the training data's characteristic of featuring upright-positioned chairs, where the legs are associated with the lower region. Consequently, the model seems to have learned to identify an upright-positioned chair rather than recognizing chairs in general. In other words, performance of segmentation is affected by the absence of data augmentation, leading to challenges with unseen data. Therefore the model is not robust to rotation and the performance decreases with the increase in rotation angle.
+
+
+<style>
+    .custom-table1 {
+        margin-left: -500px; /* Adjust the margin to your preference */
+        width: calc(250%);
+        text-align: left;
+        border-collapse: collapse;
+    }
+    
+    .custom-table1 th,
+    .custom-table td {
+        padding: 2px;
+        border: 1px solid #ccc;
+    }
+    
+    .custom-table1 th:first-child,
+    .custom-table1 td:first-child {
+        width: 0.05%; /* Set the width for the first column (Angles) */
+    }
+    
+    .custom-table1 th:not(:first-child),
+    .custom-table1 td:not(:first-child) {
+        width: 23%; /* Set the width for the rest of the columns */
+    }
+    
+    .custom-table1 figure {
+        margin: 0; /* Remove default margins around figures */
+    }
+    
+    .custom-table1 img {
+        width: 100%; /* Make the images fill their container */
+    }
+    </style>
+    
+    <table class="custom-table1" style="text-align: center;">
+        <tr>
+            <th>Rotation angle around X-axis</th>
+            <th>45 deg</th>
+            <th>90 deg</th>
+            <th>180 deg</th>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Ground Truth</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_45/gt_0_0.gif" alt="GT Chair 360° rendered at X-45 deg" />
+                    <figcaption>Chair 360° rendered at X-45 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_90/gt_0_0.gif" alt="GT Chair360° rendered at X-90 deg" />
+                    <figcaption>Chair 360° rendered at X-90 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_180/gt_0_1.gif" alt="GT Chair 360° rendered at X-180 deg" />
+                    <figcaption>Chair 360° rendered at X-180 deg</figcaption>
+                </figure>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Prediction</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_45/pred_0_0.gif" alt="Predicted Chair 360° rendered at X-45 deg" />
+                    <figcaption>Predicted Chair 360° rendered at X-45 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_90/pred_0_0.gif" alt="Predicted Chair 360° rendered at X-90 deg" />
+                    <figcaption>Predicted Chair 360° rendered at X-90 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="x_180/pred_0_1.gif" alt="Predicted Chair 360° rendered at X-180 deg" />
+                    <figcaption>Predicted Chair 360° rendered at X-180 deg</figcaption>
+                </figure>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Instance Accuracies</strong></font></p></td>
+            <td>
+                <p><font size="4.0"><strong>Instance Accuracy: 75.09 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.0"><strong>Instance Accuracy: 26.72 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.0"><strong>Instance Accuracy: 70.80 %</strong></font></p>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="3.5"><strong>Overall Test Accuracies</strong></font></p></td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 67.43 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 16.42 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 31.65 %</strong></font></p>
+            </td>
+        </tr>
+    </table>
+
+X Rotation | 45 deg | 90 deg | 180 deg
+
+
+<style>
+    .custom-table1 {
+        margin-left: -500px; /* Adjust the margin to your preference */
+        width: calc(250%);
+        text-align: left;
+        border-collapse: collapse;
+    }
+    
+    .custom-table1 th,
+    .custom-table td {
+        padding: 2px;
+        border: 1px solid #ccc;
+    }
+    
+    .custom-table1 th:first-child,
+    .custom-table1 td:first-child {
+        width: 0.05%; /* Set the width for the first column (Angles) */
+    }
+    
+    .custom-table1 th:not(:first-child),
+    .custom-table1 td:not(:first-child) {
+        width: 23%; /* Set the width for the rest of the columns */
+    }
+    
+    .custom-table1 figure {
+        margin: 0; /* Remove default margins around figures */
+    }
+    
+    .custom-table1 img {
+        width: 100%; /* Make the images fill their container */
+    }
+    </style>
+    
+    <table class="custom-table1" style="text-align: center;">
+        <tr>
+            <th>Rotation angle around XYZ axicies</th>
+            <th>XYZ 15 deg</th>
+            <th>XYZ 30 deg</th>
+            <th>XYZ 45 deg</th>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Ground Truth</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_15/gt_0_0.gif" alt="GT Chair 360° rendered at XYZ 15 deg" />
+                    <figcaption>GT Chair 360° rendered at XYZ 15 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_30/gt_0_1.gif" alt="GT Chair 360° rendered at XYZ 30 deg" />
+                    <figcaption>GT Chair 360° rendered at XYZ 30 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_45/gt_0_2.gif" alt="GT Chair 360° rendered at XYZ 45 deg" />
+                    <figcaption>GT Chair 360° rendered at XYZ 45 deg</figcaption>
+                </figure>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Prediction</strong></font></p></td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_15/pred_0_0.gif" alt="Predicted Chair 360° rendered at XYZ 15 deg" />
+                    <figcaption>Predicted Chair 360° rendered at XYZ 15 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_30/pred_0_1.gif" alt="Predicted Chair 360° rendered at XYZ 30 deg" />
+                    <figcaption>Predicted Chair 360° rendered at XYZ 30 deg</figcaption>
+                </figure>
+            </td>
+            <td>
+                <figure style="display: inline-block; width: 100%;">
+                    <img src="xyz_45/pred_0_2.gif" alt="Predicted Chair 360° rendered at XYZ 45 deg" />
+                    <figcaption>Predicted Chair 360° rendered at XYZ 45 deg</figcaption>
+                </figure>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="2.5"><strong>Instance Accuracies</strong></font></p></td>
+            <td>
+                <p><font size="4.0"><strong>Instance Accuracy: 76.37%</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.0"><strong>Instance Accuracy: 68.39%</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.0"><strong>Instance Accuracy: 23.13 %</strong></font></p>
+            </td>
+        </tr>
+        <tr>
+            <td><p><font size="3.5"><strong>Overall Test Accuracies</strong></font></p></td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 73 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 49 %</strong></font></p>
+            </td>
+            <td>
+                <p><font size="4.5"><strong>Test accuracy : 27 %</strong></font></p>
+            </td>
+        </tr>
+    </table>
+XYZ Rotation | 15 deg | 30 deg | 45 deg
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js" charset="utf-8"></script><script src="https://morgan3d.github.io/markdeep/latest/markdeep.min.js?" charset="utf-8"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
